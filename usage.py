@@ -28,6 +28,7 @@ app.layout = html.Div(
                 ],
                 "layout": {"title": "Dash Data Visualization"},
             },
+            plotly_layout={"colorway": ["#00ff00", "#ffffff"]},
         ),
         html.Div(id="output"),
     ]

@@ -1,4 +1,6 @@
+import copy
 import inspect
+
 import dash_core_components as dcc
 
 
@@ -17,24 +19,49 @@ dcc._js_dist = [
 
 
 class Graph(dcc.Graph):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, plotly_layout=None, **kwargs):
 
-        config_arg_index = inspect.getfullargspec(dcc.Graph).args.index("config")
+        config_input = Graph.get_input_value(args, kwargs, "config")
+        Graph.change_arguments(args, kwargs, "config",Graph.populate_config(config_input))
 
-        if len(args) > config_arg_index:  # config given as positional argument
-            args = (
-                args[:config_arg_index]
-                + (Graph.populate_config(args[config_arg_index]),)
-                + args[config_arg_index + 1 :]
-            )
+        if plotly_layout is not None:
+            figure_input = copy.deepcopy(Graph.get_input_value(args, kwargs, "figure"))
 
-        elif "config" in kwargs:  # config given as keyword argument
-            kwargs["config"] = Graph.populate_config(kwargs["config"])
+            if "layout" not in figure_input:
+                figure_input["layout"] = {}
 
-        else:  # config not given - give with only default values
-            kwargs["config"] = Graph.populate_config()
+            figure_input["layout"].update(plotly_layout)
+            Graph.change_arguments(args, kwargs, "figure", figure_input)
 
         super().__init__(*args, **kwargs)
+
+    @staticmethod
+    def get_input_value(args, kwargs, argument_name):
+        arg_index = inspect.getfullargspec(dcc.Graph).args.index(argument_name)
+
+        if len(args) > arg_index:  # config given as positional argument
+            return args[arg_index]
+        elif argument_name in kwargs:  # config given as keyword argument
+            return kwargs[argument_name]
+        else:
+            return None
+
+    @staticmethod
+    def change_arguments(args, kwargs, argument_name, new_value):
+        arg_index = inspect.getfullargspec(dcc.Graph).args.index(argument_name)
+
+        if len(args) > arg_index:  # config given as positional argument
+            args = (
+                args[:arg_index]
+                + (new_value,)
+                + args[arg_index + 1 :]
+            )
+
+        elif argument_name in kwargs:  # config given as keyword argument
+            kwargs[argument_name] = new_value
+
+        else:  # config not given - give with only default values
+            kwargs[argument_name] = new_value
 
     @staticmethod
     def populate_config(input_config=None):
@@ -44,7 +71,7 @@ class Graph(dcc.Graph):
         if input_config is None:
             config = {}
         else:
-            config = input_config.copy()
+            config = copy.deepcopy(input_config)
 
         if "modeBarButtonsToRemove" not in config:
             config["modeBarButtonsToRemove"] = ["sendDataToCloud", "toImage"]
